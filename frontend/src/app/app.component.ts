@@ -31,7 +31,7 @@ import { Reservation, RestaurantTable } from './models';
           <input [(ngModel)]="password" type="password">
         </label>
         <button type="button" (click)="login()">Zaloguj</button>
-        <p class="hint">Domyslnie: admin@seatme.local / admin123</p>
+        <p class="hint">Domyslnie: admin&#64;seatme.local / admin123</p>
       </section>
 
       <section *ngIf="isLoggedIn()" class="grid">
