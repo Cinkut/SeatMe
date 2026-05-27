@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReservationStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum TableLocation {
+  WINDOW
+  CENTER
+  TERRACE
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+}
+
+model RestaurantTable {
+  id           Int           @id @default(autoincrement())
+  number       Int           @unique
+  capacity     Int
+  location     TableLocation
+  reservations Reservation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Reservation {
+  id            Int               @id @default(autoincrement())
+  tableId       Int
+  table         RestaurantTable   @relation(fields: [tableId], references: [id])
+  customerName  String
+  customerPhone String
+  guestCount    Int
+  startTime     DateTime
+  endTime       DateTime
+  status        ReservationStatus @default(ACTIVE)
+  note          String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([tableId, startTime, endTime])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  eventName String
+  payload   Json
+  createdAt DateTime @default(now())
+}

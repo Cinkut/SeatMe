@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: seatme-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: seatme
+      POSTGRES_USER: seatme
+      POSTGRES_PASSWORD: seatme
+    ports:
+      - "5432:5432"
+    volumes:
+      - seatme-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  seatme-postgres-data:
