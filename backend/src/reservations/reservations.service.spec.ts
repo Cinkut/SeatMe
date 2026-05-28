@@ -1,6 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ReservationStatus, TableLocation } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { TablesRepository } from '../tables/tables.repository';
 import { ReservationsRepository } from './reservations.repository';
 import { ReservationsService } from './reservations.service';
@@ -10,6 +11,7 @@ describe('ReservationsService', () => {
   let reservationsRepository: jest.Mocked<ReservationsRepository>;
   let tablesRepository: jest.Mocked<TablesRepository>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
+  let prisma: jest.Mocked<PrismaService>;
 
   const table = {
     id: 1,
@@ -38,7 +40,11 @@ describe('ReservationsService', () => {
       emit: jest.fn(),
     } as unknown as jest.Mocked<EventEmitter2>;
 
-    service = new ReservationsService(reservationsRepository, tablesRepository, eventEmitter);
+    prisma = {
+      $transaction: jest.fn((callback) => callback({})),
+    } as unknown as jest.Mocked<PrismaService>;
+
+    service = new ReservationsService(reservationsRepository, tablesRepository, eventEmitter, prisma);
   });
 
   it('creates a reservation and emits an event', async () => {
@@ -115,6 +121,6 @@ describe('ReservationsService', () => {
         startTime: '2026-06-01T18:00:00.000Z',
         endTime: '2026-06-01T20:00:00.000Z',
       }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ConflictException);
   });
 });

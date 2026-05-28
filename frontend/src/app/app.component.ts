@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { ApiService, ReservationForm } from './core/api.service';
 import { AuthService } from './core/auth.service';
+import { RealtimeService } from './core/realtime.service';
 import { Reservation, RestaurantTable } from './models';
 
 @Component({
@@ -74,13 +76,33 @@ import { Reservation, RestaurantTable } from './models';
         </div>
 
         <div class="card">
-          <h2>Stoliki</h2>
-          <div class="table-list">
-            <article *ngFor="let table of tables()" class="table-tile">
-              <strong>Stolik {{ table.number }}</strong>
+          <div class="section-heading">
+            <h2>Mapa stolikow</h2>
+            <span class="hint">Kliknij wolny stolik</span>
+          </div>
+          <p class="hint">
+            Dostepnosc liczona dla zakresu wybranego w formularzu.
+          </p>
+          <div class="legend">
+            <span><i class="dot available-dot"></i> wolny</span>
+            <span><i class="dot reserved-dot"></i> zajety</span>
+            <span><i class="dot selected-dot"></i> wybrany</span>
+          </div>
+          <div class="floor-plan">
+            <button
+              *ngFor="let table of tables()"
+              type="button"
+              class="restaurant-table"
+              [class.available]="tableAvailability(table) === 'available'"
+              [class.reserved]="tableAvailability(table) === 'reserved'"
+              [class.selected]="form.tableId === table.id"
+              [disabled]="tableAvailability(table) === 'reserved'"
+              (click)="selectTable(table)"
+            >
+              <strong>{{ table.number }}</strong>
               <span>{{ table.capacity }} os.</span>
-              <span>{{ table.location }}</span>
-            </article>
+              <small>{{ table.location }}</small>
+            </button>
           </div>
         </div>
       </section>
@@ -119,10 +141,11 @@ import { Reservation, RestaurantTable } from './models';
     </main>
   `,
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   email = 'admin@seatme.local';
   password = 'admin123';
   form: ReservationForm = this.emptyForm();
+  private realtimeSubscription?: Subscription;
 
   readonly tables = signal<RestaurantTable[]>([]);
   readonly reservations = signal<Reservation[]>([]);
@@ -132,12 +155,19 @@ export class AppComponent implements OnInit {
   constructor(
     private readonly auth: AuthService,
     private readonly api: ApiService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   ngOnInit() {
     if (this.isLoggedIn()) {
       this.loadData();
+      this.connectRealtime();
     }
+  }
+
+  ngOnDestroy() {
+    this.realtimeSubscription?.unsubscribe();
+    this.realtime.disconnect();
   }
 
   login() {
@@ -145,6 +175,7 @@ export class AppComponent implements OnInit {
       next: () => {
         this.message.set('Zalogowano.');
         this.loadData();
+        this.connectRealtime();
       },
       error: (error) => this.showError(error),
     });
@@ -152,6 +183,8 @@ export class AppComponent implements OnInit {
 
   logout() {
     this.auth.logout();
+    this.realtimeSubscription?.unsubscribe();
+    this.realtime.disconnect();
     this.tables.set([]);
     this.reservations.set([]);
   }
@@ -169,6 +202,11 @@ export class AppComponent implements OnInit {
   }
 
   createReservation() {
+    if (!this.form.tableId || !this.form.startTime || !this.form.endTime) {
+      this.message.set('Wybierz stolik oraz termin rezerwacji.');
+      return;
+    }
+
     const payload = {
       ...this.form,
       startTime: new Date(this.form.startTime).toISOString(),
@@ -183,6 +221,38 @@ export class AppComponent implements OnInit {
       },
       error: (error) => this.showError(error),
     });
+  }
+
+  selectTable(table: RestaurantTable) {
+    if (this.tableAvailability(table) === 'reserved') {
+      this.message.set('Ten stolik jest zajety w wybranym terminie.');
+      return;
+    }
+
+    this.form.tableId = table.id;
+    this.message.set(`Wybrano stolik ${table.number}.`);
+  }
+
+  tableAvailability(table: RestaurantTable): 'available' | 'reserved' {
+    const selectedRange = this.selectedRange();
+    if (!selectedRange) {
+      return 'available';
+    }
+
+    const isReserved = this.reservations().some((reservation) => {
+      if (reservation.tableId !== table.id || reservation.status !== 'ACTIVE') {
+        return false;
+      }
+
+      return this.rangesOverlap(
+        selectedRange.start,
+        selectedRange.end,
+        new Date(reservation.startTime),
+        new Date(reservation.endTime),
+      );
+    });
+
+    return isReserved ? 'reserved' : 'available';
   }
 
   cancelReservation(id: number) {
@@ -210,5 +280,35 @@ export class AppComponent implements OnInit {
   private showError(error: { error?: { message?: string | string[] } }) {
     const message = error.error?.message;
     this.message.set(Array.isArray(message) ? message.join(', ') : message ?? 'Wystapil blad.');
+  }
+
+  private connectRealtime() {
+    if (this.realtimeSubscription) {
+      return;
+    }
+
+    this.realtimeSubscription = this.realtime.reservationChanges().subscribe((event) => {
+      this.message.set(`Aktualizacja live: ${event.type}`);
+      this.loadData();
+    });
+  }
+
+  private selectedRange(): { start: Date; end: Date } | null {
+    if (!this.form.startTime || !this.form.endTime) {
+      return null;
+    }
+
+    const start = new Date(this.form.startTime);
+    const end = new Date(this.form.endTime);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      return null;
+    }
+
+    return { start, end };
+  }
+
+  private rangesOverlap(firstStart: Date, firstEnd: Date, secondStart: Date, secondEnd: Date) {
+    return firstStart < secondEnd && firstEnd > secondStart;
   }
 }
