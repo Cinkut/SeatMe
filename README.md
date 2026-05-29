@@ -14,7 +14,7 @@ Mini system rezerwacji stolikow w restauracji przygotowany jako projekt web app 
 
 - logowanie uzytkownika i zabezpieczone API
 - CRUD rezerwacji stolikow
-- mapa stolikow restauracji z kolorami dostepnosci
+- realistyczna mapa sali restauracyjnej z pozycjami stolikow i kolorami dostepnosci
 - DTO + walidacja danych
 - globalna obsluga bledow
 - warstwy controller/service/repository
@@ -37,21 +37,21 @@ npm run dev
 
 Backend dziala domyslnie na `http://localhost:3000`, frontend na `http://localhost:4200`.
 
-Domyslne konto:
+## Uzytkownicy
 
-- email: `admin@seatme.local`
-- haslo: `admin123`
+- **Klient (publicznie, bez logowania):** `http://localhost:4200/` — mapa stolikow, formularz rezerwacji, sekcja „Moje rezerwacje” po numerze telefonu (anulowanie wymaga tego samego numeru).
+- **Admin (JWT):** `http://localhost:4200/admin` — podglad wszystkich rezerwacji i anulowanie (dostep tylko przez URL).
+
+Konto admina tworzy seed bazy — nie wyswietlaj hasla w UI.
 
 ## Scenariusz demo
 
 1. Uruchom baze, backend i frontend.
-2. Zaloguj sie na domyslne konto.
-3. Wybierz termin i pokaz mape stolikow.
-4. Kliknij wolny stolik i utworz rezerwacje.
-5. Pokaz walidacje, np. liczba osob wieksza niz pojemnosc stolika.
-6. Pokaz blokade kolizji terminu dla tego samego stolika (`409 Conflict`).
-7. Otworz drugi widok aplikacji i pokaz live odswiezenie przez WebSocket.
-8. Anuluj rezerwacje i pokaz event w logach backendu.
+2. Jako klient: wejdz na `/`, zarezerwuj stolik bez logowania.
+3. W „Moje rezerwacje” podaj telefon i anuluj wizyte.
+4. Jako admin: wejdz na `/admin`, zaloguj sie, przejrzyj wszystkie rezerwacje.
+5. Pokaz walidacje i kolizje terminu (`409 Conflict`).
+6. Otworz druga karte i pokaz live odswiezenie przez WebSocket.
 
 ## Kryteria oceny
 

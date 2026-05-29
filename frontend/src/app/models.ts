@@ -1,3 +1,10 @@
+export interface OccupancySlot {
+  tableId: number;
+  startTime: string;
+  endTime: string;
+  status: string;
+}
+
 export interface RestaurantTable {
   id: number;
   number: number;

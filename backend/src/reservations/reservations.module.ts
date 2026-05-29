@@ -16,5 +16,6 @@ import { ReservationsService } from './reservations.service';
     ReservationEventsHandler,
     ReservationsGateway,
   ],
+  exports: [ReservationsService],
 })
 export class ReservationsModule {}

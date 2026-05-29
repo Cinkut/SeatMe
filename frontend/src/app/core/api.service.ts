@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Reservation, RestaurantTable } from '../models';
+import { OccupancySlot, Reservation, RestaurantTable } from '../models';
 
 export interface ReservationForm {
   tableId: number;
@@ -18,19 +18,35 @@ export class ApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getTables() {
-    return this.http.get<RestaurantTable[]>(`${this.apiUrl}/tables`);
+  getPublicTables() {
+    return this.http.get<RestaurantTable[]>(`${this.apiUrl}/public/tables`);
   }
 
-  getReservations() {
+  getOccupancy() {
+    return this.http.get<OccupancySlot[]>(`${this.apiUrl}/public/reservations/occupancy`);
+  }
+
+  createPublicReservation(form: ReservationForm) {
+    return this.http.post<Reservation>(`${this.apiUrl}/public/reservations`, form);
+  }
+
+  getMyReservations(phone: string) {
+    return this.http.get<Reservation[]>(`${this.apiUrl}/public/reservations/mine`, {
+      params: { phone },
+    });
+  }
+
+  cancelMyReservation(id: number, customerPhone: string) {
+    return this.http.delete<Reservation>(`${this.apiUrl}/public/reservations/${id}`, {
+      body: { customerPhone },
+    });
+  }
+
+  getAdminReservations() {
     return this.http.get<Reservation[]>(`${this.apiUrl}/reservations`);
   }
 
-  createReservation(form: ReservationForm) {
-    return this.http.post<Reservation>(`${this.apiUrl}/reservations`, form);
-  }
-
-  cancelReservation(id: number) {
+  cancelAdminReservation(id: number) {
     return this.http.delete<Reservation>(`${this.apiUrl}/reservations/${id}`);
   }
 }

@@ -8,6 +8,6 @@ import { TablesService } from './tables.service';
   imports: [PrismaModule],
   controllers: [TablesController],
   providers: [TablesService, TablesRepository],
-  exports: [TablesRepository],
+  exports: [TablesService, TablesRepository],
 })
 export class TablesModule {}

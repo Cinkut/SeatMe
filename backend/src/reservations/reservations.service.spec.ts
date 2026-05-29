@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ReservationStatus, TableLocation } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +29,7 @@ describe('ReservationsService', () => {
       create: jest.fn(),
       update: jest.fn(),
       findOverlapping: jest.fn(),
+      expirePastReservations: jest.fn().mockResolvedValue({ count: 0 }),
     } as unknown as jest.Mocked<ReservationsRepository>;
 
     tablesRepository = {
@@ -122,5 +123,68 @@ describe('ReservationsService', () => {
         endTime: '2026-06-01T20:00:00.000Z',
       }),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it('cancels reservation when phone matches', async () => {
+    reservationsRepository.findById.mockResolvedValue({
+      id: 1,
+      tableId: 1,
+      table,
+      customerName: 'Anna',
+      customerPhone: '600-123-456',
+      guestCount: 2,
+      startTime: new Date(),
+      endTime: new Date(),
+      status: ReservationStatus.ACTIVE,
+      note: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    reservationsRepository.update.mockResolvedValue({
+      id: 1,
+      tableId: 1,
+      table,
+      customerName: 'Anna',
+      customerPhone: '600-123-456',
+      guestCount: 2,
+      startTime: new Date(),
+      endTime: new Date(),
+      status: ReservationStatus.CANCELLED,
+      note: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.cancelByCustomer(1, '600123456');
+
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('rejects cancel when phone does not match', async () => {
+    reservationsRepository.findById.mockResolvedValue({
+      id: 1,
+      tableId: 1,
+      table,
+      customerName: 'Anna',
+      customerPhone: '600-123-456',
+      guestCount: 2,
+      startTime: new Date(),
+      endTime: new Date(),
+      status: ReservationStatus.ACTIVE,
+      note: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(service.cancelByCustomer(1, '111222333')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('marks past active reservations as completed', async () => {
+    reservationsRepository.expirePastReservations.mockResolvedValue({ count: 2 });
+    reservationsRepository.findAll.mockResolvedValue([]);
+
+    await service.findOccupancy();
+
+    expect(reservationsRepository.expirePastReservations).toHaveBeenCalled();
   });
 });

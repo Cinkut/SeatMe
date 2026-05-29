@@ -54,4 +54,14 @@ export class ReservationsRepository {
       },
     });
   }
+
+  expirePastReservations(client: PrismaClientLike = this.prisma) {
+    return client.reservation.updateMany({
+      where: {
+        status: ReservationStatus.ACTIVE,
+        endTime: { lt: new Date() },
+      },
+      data: { status: ReservationStatus.COMPLETED },
+    });
+  }
 }
